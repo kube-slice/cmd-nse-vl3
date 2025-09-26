@@ -20,7 +20,13 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
+	nested "github.com/antonfisher/nested-logrus-formatter"
+	"github.com/edwarnicke/grpcfd"
+	"github.com/kelseyhightower/envconfig"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -28,16 +34,6 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
-
-	nested "github.com/antonfisher/nested-logrus-formatter"
-	"github.com/edwarnicke/grpcfd"
-	"github.com/kelseyhightower/envconfig"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-	"github.com/spiffe/go-spiffe/v2/spiffetls/tlsconfig"
-	"github.com/spiffe/go-spiffe/v2/workloadapi"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 
 	"github.com/networkservicemesh/api/pkg/api/ipam"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -62,7 +58,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 	"github.com/networkservicemesh/sdk/pkg/tools/opentelemetry"
-	"github.com/networkservicemesh/sdk/pkg/tools/spiffejwt"
 	"github.com/networkservicemesh/sdk/pkg/tools/tracing"
 )
 
@@ -152,7 +147,7 @@ func main() {
 	if opentelemetry.IsEnabled() {
 		collectorAddress := config.OpenTelemetryEndpoint
 		spanExporter := opentelemetry.InitSpanExporter(ctx, collectorAddress)
-                metricExporter := opentelemetry.InitOPTLMetricExporter(ctx, collectorAddress, 60*time.Second)
+		metricExporter := opentelemetry.InitOPTLMetricExporter(ctx, collectorAddress, 60*time.Second)
 		o := opentelemetry.Init(ctx, spanExporter, metricExporter, config.Name)
 		defer func() {
 			if err = o.Close(); err != nil {
@@ -164,28 +159,14 @@ func main() {
 	// ********************************************************************************
 	log.FromContext(ctx).Infof("executing phase 2: retrieving svid, check spire agent logs if this is the last line you see")
 	// ********************************************************************************
-	source, err := workloadapi.NewX509Source(ctx)
-	if err != nil {
-		logrus.Fatalf("error getting x509 source: %+v", err)
-	}
-	svid, err := source.GetX509SVID()
-	if err != nil {
-		logrus.Fatalf("error getting x509 svid: %+v", err)
-	}
-	log.FromContext(ctx).Infof("SVID: %q", svid.ID)
-
-	tlsClientConfig := tlsconfig.MTLSClientConfig(source, source, tlsconfig.AuthorizeAny())
-	tlsClientConfig.MinVersion = tls.VersionTLS12
-	tlsServerConfig := tlsconfig.MTLSServerConfig(source, source, tlsconfig.AuthorizeAny())
-	tlsServerConfig.MinVersion = tls.VersionTLS12
 
 	// ********************************************************************************
 	log.FromContext(ctx).Infof("executing phase 3: create vl3 network service endpoint")
+
 	// ********************************************************************************
 	responderEndpoint := endpoint.NewServer(ctx,
-		spiffejwt.TokenGeneratorFunc(source, config.MaxTokenLifetime),
 		endpoint.WithName(config.Name),
-		endpoint.WithAuthorizeServer(authorize.NewServer()),
+		endpoint.WithAuthorizeServer(authorize.NewServer(authorize.Any())),
 		endpoint.WithAdditionalFunctionality(
 			onidle.NewServer(ctx, cancel, config.IdleTimeout),
 			vl3.NewServer(ctx, startListenPrefixes(config)),
@@ -203,13 +184,7 @@ func main() {
 	// ********************************************************************************
 	options := append(
 		tracing.WithTracing(),
-		grpc.Creds(
-			grpcfd.TransportCredentials(
-				credentials.NewTLS(
-					tlsServerConfig,
-				),
-			),
-		),
+		grpc.Creds(grpcfd.TransportCredentials(insecure.NewCredentials())),
 	)
 	server := grpc.NewServer(options...)
 	responderEndpoint.Register(server)
@@ -229,14 +204,10 @@ func main() {
 	clientOptions := append(
 		tracing.WithTracingDial(),
 		grpc.WithBlock(),
-		grpc.WithDefaultCallOptions(grpc.WaitForReady(true)),
 		grpc.WithTransportCredentials(
-			grpcfd.TransportCredentials(
-				credentials.NewTLS(
-					tlsClientConfig,
-				),
-			),
+			grpcfd.TransportCredentials(insecure.NewCredentials()),
 		),
+		grpc.WithDefaultCallOptions(grpc.WaitForReady(true)),
 	)
 
 	if config.RegisterService {
