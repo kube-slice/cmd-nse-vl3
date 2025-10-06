@@ -81,10 +81,9 @@ github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common
 github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel
 github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/noop
 github.com/networkservicemesh/api/pkg/api/registry
-# github.com/networkservicemesh/sdk v1.6.1 => github.com/kube-slice/nsm-sdk v1.6.2-kbs-vl3.0.20250926050737-a7ae382978a6
+# github.com/networkservicemesh/sdk v1.6.1 => github.com/kube-slice/nsm-sdk v1.6.2-kbs-vl3.0.20251001044933-575e4dc25006
 ## explicit; go 1.18
 github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint
-github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize
 github.com/networkservicemesh/sdk/pkg/networkservice/common/begin
 github.com/networkservicemesh/sdk/pkg/networkservice/common/clientconn
 github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms

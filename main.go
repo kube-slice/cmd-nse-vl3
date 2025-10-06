@@ -41,7 +41,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/noop"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
@@ -166,7 +165,6 @@ func main() {
 	// ********************************************************************************
 	responderEndpoint := endpoint.NewServer(ctx,
 		endpoint.WithName(config.Name),
-		endpoint.WithAuthorizeServer(authorize.NewServer(authorize.Any())),
 		endpoint.WithAdditionalFunctionality(
 			onidle.NewServer(ctx, cancel, config.IdleTimeout),
 			vl3.NewServer(ctx, startListenPrefixes(config)),
