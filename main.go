@@ -26,6 +26,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"io/ioutil"
 	"net/url"
@@ -180,9 +181,10 @@ func main() {
 	// ********************************************************************************
 	log.FromContext(ctx).Infof("executing phase 4: create grpc server and register vl3 nse")
 	// ********************************************************************************
+	var creds credentials.TransportCredentials
 	options := append(
 		tracing.WithTracing(),
-		grpc.Creds(grpcfd.TransportCredentials(insecure.NewCredentials())),
+		grpc.Creds(grpcfd.TransportCredentials(creds)),
 	)
 	server := grpc.NewServer(options...)
 	responderEndpoint.Register(server)
@@ -206,6 +208,8 @@ func main() {
 			grpcfd.TransportCredentials(insecure.NewCredentials()),
 		),
 		grpc.WithDefaultCallOptions(grpc.WaitForReady(true)),
+		grpcfd.WithChainStreamInterceptor(),
+		grpcfd.WithChainUnaryInterceptor(),
 	)
 
 	if config.RegisterService {
